@@ -1,0 +1,19 @@
+{
+  "name": "skillbridge-matching-algorithm",
+  "version": "1.0.0",
+  "description": "SkillBridge deterministic student team-matching algorithm",
+  "type": "module",
+  "main": "src/utils/matchingAlgorithm.js",
+  "scripts": {
+    "test": "node --test tests/**/*.test.js"
+  },
+  "keywords": [
+    "matching",
+    "algorithm",
+    "education",
+    "skills",
+    "collaboration"
+  ],
+  "author": "",
+  "license": "MIT"
+}

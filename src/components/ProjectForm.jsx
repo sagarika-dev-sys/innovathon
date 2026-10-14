@@ -24,20 +24,37 @@ setSelectedSkills([...selectedSkills, skill])
 }
 }
 
-const handleSubmit = (e) => {
-e.preventDefault()
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-if (selectedSkills.length === 0) {
-  alert('Please select at least one skill!')
-  return
-}
+  if (selectedSkills.length === 0) {
+    alert('Please select at least one skill!');
+    return;
+  }
 
-alert(
-  `Project: ${projectName}\nTeam Size: ${teamSize}\nRequired Skills: ${selectedSkills.join(', ')}`
-)
+  try {
+    const response = await fetch('http://localhost:5000/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectName,
+        selectedSkills,
+        teamSize: Number(teamSize) // Ensure it sends as a number, not a string
+      })
+    });
 
-}
-
+    if (response.ok) {
+      alert('Project successfully saved to the database! 🚀');
+      setProjectName('');
+      setSelectedSkills([]);
+      setTeamSize('3');
+    } else {
+      alert('Error saving project.');
+    }
+  } catch (error) {
+    console.error('Failed to create project:', error);
+  }
+};
 return (
 <section className="project-section" id="projects">
 <div className="form-card">

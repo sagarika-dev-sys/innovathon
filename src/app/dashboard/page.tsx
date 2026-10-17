@@ -30,6 +30,7 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const initialTab = searchParams?.get('tab') || 'overview';
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [formationsOnly, setFormationsOnly] = useState(false);
 
   useEffect(() => {
     const tab = searchParams?.get('tab');
@@ -157,7 +158,7 @@ function DashboardContent() {
 
               {/* Campus Live Activity Feed */}
               <Card className="p-6">
-                <CardHeader className="p-0 pb-4 flex items-center justify-between">
+                <CardHeader className="p-0 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h3 className="text-base font-bold text-white flex items-center gap-2">
                       <Clock className="w-4 h-4 text-cyan-400" />
@@ -165,30 +166,43 @@ function DashboardContent() {
                     </h3>
                     <p className="text-xs text-slate-400">Real-time collaboration events</p>
                   </div>
-                  <Badge variant="emerald" size="sm" dot>
-                    Live Updates
-                  </Badge>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-slate-400 hover:text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={formationsOnly}
+                        onChange={(e) => setFormationsOnly(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-500/30 cursor-pointer"
+                      />
+                      <span>Squad Formations Only</span>
+                    </label>
+                    <Badge variant="emerald" size="sm" dot>
+                      Live Updates
+                    </Badge>
+                  </div>
                 </CardHeader>
 
                 <CardBody className="p-0 pt-3 space-y-3">
-                  {initialActivities.map((act) => (
-                    <div
-                      key={act.id}
-                      className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />
+                  {initialActivities
+                    .filter((act) => !formationsOnly || act.action.includes('formed'))
+                    .map((act) => (
+                      <div
+                        key={act.id}
+                        className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />
+                          </div>
+                          <div className="text-slate-300">
+                            <span className="font-semibold text-white">{act.actor}</span>{' '}
+                            <span className="text-slate-400">{act.action}</span>{' '}
+                            <span className="text-indigo-300 font-medium">{act.target}</span>
+                          </div>
                         </div>
-                        <div className="text-slate-300">
-                          <span className="font-semibold text-white">{act.actor}</span>{' '}
-                          <span className="text-slate-400">{act.action}</span>{' '}
-                          <span className="text-indigo-300 font-medium">{act.target}</span>
-                        </div>
+                        <span className="text-[11px] text-slate-500 shrink-0">{act.timestamp}</span>
                       </div>
-                      <span className="text-[11px] text-slate-500 shrink-0">{act.timestamp}</span>
-                    </div>
-                  ))}
+                    ))}
                 </CardBody>
               </Card>
             </div>

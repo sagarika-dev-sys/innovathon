@@ -7,11 +7,15 @@ import Button from './Button';
 import Avatar from './Avatar';
 import { NotificationItem } from '@/types';
 import { initialNotifications } from '@/data/mockProjects';
-import { Bell, Check, Sparkles, UserPlus, Info, CheckCircle2 } from 'lucide-react';
+import { Bell, Check, Sparkles, UserPlus, Info, CheckCircle2, Filter } from 'lucide-react';
 
 export default function NotificationFeed() {
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [filter, setFilter] = useState<'all' | 'match' | 'invite' | 'system'>('all');
+
+  // STRICT REQUIREMENT: Any checkboxes or filters must be UNCHECKED by default
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [invitesOnly, setInvitesOnly] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -26,6 +30,8 @@ export default function NotificationFeed() {
   };
 
   const filtered = notifications.filter((n) => {
+    if (unreadOnly && n.read) return false;
+    if (invitesOnly && n.type !== 'invite') return false;
     if (filter === 'all') return true;
     return n.type === filter;
   });
@@ -62,7 +68,7 @@ export default function NotificationFeed() {
             </Badge>
             <button
               onClick={markAllAsRead}
-              className="text-[11px] text-slate-400 hover:text-indigo-400 transition-colors"
+              className="text-[11px] text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
             >
               Clear
             </button>
@@ -75,6 +81,29 @@ export default function NotificationFeed() {
       </CardHeader>
 
       <CardBody className="space-y-4">
+        {/* Filter Checkboxes - UNCHECKED BY DEFAULT */}
+        <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <label className="flex items-center gap-2 cursor-pointer text-slate-400 hover:text-slate-200">
+            <input
+              type="checkbox"
+              checked={unreadOnly}
+              onChange={(e) => setUnreadOnly(e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500/30 cursor-pointer"
+            />
+            <span>Unread Only</span>
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer text-slate-400 hover:text-slate-200">
+            <input
+              type="checkbox"
+              checked={invitesOnly}
+              onChange={(e) => setInvitesOnly(e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500/30 cursor-pointer"
+            />
+            <span>Invitations Only</span>
+          </label>
+        </div>
+
         {/* Filters */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs">
           {(['all', 'match', 'invite', 'system'] as const).map((t) => (

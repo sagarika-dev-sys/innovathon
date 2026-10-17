@@ -9,7 +9,19 @@ import Input from '@/components/ui/Input';
 import { generateTeam } from '@/lib/matchingAlgorithm';
 import { studentsData } from '@/data/students';
 import { MatchingResult } from '@/types';
-import { Sparkles, Users, CheckCircle2, AlertCircle, ArrowRight, RefreshCw, Send, Check } from 'lucide-react';
+import {
+  Sparkles,
+  Users,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+  RefreshCw,
+  Send,
+  Check,
+  Filter,
+  SlidersHorizontal,
+  Layers,
+} from 'lucide-react';
 
 const skillCategories = {
   'Frontend & Mobile': ['React', 'Next.js', 'TypeScript', 'JavaScript', 'HTML', 'CSS', 'Frontend'],
@@ -27,17 +39,27 @@ const quickPresets = [
 ];
 
 export default function TeamMatcher() {
-  const [projectName, setProjectName] = useState('Campus Hackathon AI Tool');
+  // STRICT REQUIREMENT: Input fields must be completely empty when user lands on page
+  const [projectName, setProjectName] = useState('');
   const [teamSize, setTeamSize] = useState<number>(3);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>(['React', 'Node.js', 'Machine Learning', 'UI/UX']);
+
+  // STRICT REQUIREMENT: Any previously checked checkboxes or selected filters must be UNCHECKED by default
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [customSkillInput, setCustomSkillInput] = useState('');
-  const [matchResult, setMatchResult] = useState<MatchingResult | null>(() => {
-    return generateTeam(studentsData, ['React', 'Node.js', 'Machine Learning', 'UI/UX'], 3);
-  });
+
+  // Filter Checkboxes - all UNCHECKED by default
+  const [filterHighAvail, setFilterHighAvail] = useState(false);
+  const [filterVerifiedGithub, setFilterVerifiedGithub] = useState(false);
+  const [filterNitrrOnly, setFilterNitrrOnly] = useState(false);
+
+  // Match result is null initially until user configures and runs synthesis
+  const [matchResult, setMatchResult] = useState<MatchingResult | null>(null);
   const [isMatching, setIsMatching] = useState(false);
+  const [validationWarning, setValidationWarning] = useState('');
   const [invitedMembers, setInvitedMembers] = useState<Record<string, boolean>>({});
 
   const toggleSkill = (skill: string) => {
+    if (validationWarning) setValidationWarning('');
     if (selectedSkills.includes(skill)) {
       setSelectedSkills(selectedSkills.filter((s) => s !== skill));
     } else {
@@ -51,32 +73,68 @@ export default function TeamMatcher() {
     if (trimmed && !selectedSkills.includes(trimmed)) {
       setSelectedSkills([...selectedSkills, trimmed]);
       setCustomSkillInput('');
+      if (validationWarning) setValidationWarning('');
     }
   };
 
   const applyPreset = (preset: typeof quickPresets[0]) => {
     setSelectedSkills(preset.skills);
     setTeamSize(preset.size);
+    if (!projectName) {
+      setProjectName(preset.name);
+    }
     handleMatchWithParams(preset.skills, preset.size);
   };
 
   const handleMatchWithParams = (skills: string[], size: number) => {
+    if (skills.length === 0) {
+      setValidationWarning('Please check at least one competency from the skills list below.');
+      return;
+    }
+    setValidationWarning('');
     setIsMatching(true);
+
     setTimeout(() => {
-      const result = generateTeam(studentsData, skills, size);
+      // Filter candidate pool if advanced filter checkboxes are checked
+      let pool = [...studentsData];
+      if (filterHighAvail) {
+        pool = pool.filter((s) => s.availability >= 80);
+      }
+      if (filterVerifiedGithub) {
+        pool = pool.filter((s) => Boolean(s.github));
+      }
+      if (filterNitrrOnly) {
+        pool = pool.filter((s) => !s.college || s.college.includes('NIT') || s.college.includes('Raipur'));
+      }
+
+      // If pool too small after filters, fallback gracefully to full pool
+      const candidates = pool.length >= size ? pool : studentsData;
+      const result = generateTeam(candidates, skills, size);
       setMatchResult(result);
       setIsMatching(false);
-    }, 250);
+    }, 350);
   };
 
   const handleRunMatch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedSkills.length === 0) return;
+    if (selectedSkills.length === 0) {
+      setValidationWarning('Please check at least one required competency checkbox to generate a team.');
+      return;
+    }
     handleMatchWithParams(selectedSkills, teamSize);
   };
 
   const handleInvite = (id: string) => {
     setInvitedMembers((prev) => ({ ...prev, [id]: true }));
+  };
+
+  const handleResetFilters = () => {
+    setSelectedSkills([]);
+    setFilterHighAvail(false);
+    setFilterVerifiedGithub(false);
+    setFilterNitrrOnly(false);
+    setMatchResult(null);
+    setValidationWarning('');
   };
 
   return (
@@ -117,19 +175,31 @@ export default function TeamMatcher() {
         <div className="lg:col-span-5 space-y-6">
           <Card className="p-6">
             <form onSubmit={handleRunMatch} className="space-y-6">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-indigo-400" />
-                  Project Specification
-                </h3>
-                <p className="text-xs text-slate-400 mt-1">Configure your requirements to begin matching</p>
+              <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-indigo-400" />
+                    Project Specification
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Configure requirements to begin matching</p>
+                </div>
+                {(selectedSkills.length > 0 || filterHighAvail || filterVerifiedGithub || filterNitrrOnly || projectName) && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="text-[11px] text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
+                  >
+                    Reset All
+                  </button>
+                )}
               </div>
 
+              {/* Project / Team Name: Pre-filled default REMOVED, strictly empty */}
               <Input
-                label="Project Name"
+                label="Project / Team Name"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                placeholder="e.g. Distributed DeFi Vault"
+                placeholder="Enter project or team name (e.g. Distributed DeFi Vault)"
                 required
               />
 
@@ -158,11 +228,64 @@ export default function TeamMatcher() {
                 </div>
               </div>
 
-              {/* Skill Selection by Category */}
+              {/* Advanced Filter Checkboxes - UNCHECKED BY DEFAULT */}
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
+                  Candidate Filter Checkboxes (Unchecked by default)
+                </div>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-400 hover:text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={filterHighAvail}
+                      onChange={(e) => setFilterHighAvail(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-500/30 cursor-pointer"
+                    />
+                    <span>High Availability Pool Only (&gt;= 80%)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-400 hover:text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={filterVerifiedGithub}
+                      onChange={(e) => setFilterVerifiedGithub(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-500/30 cursor-pointer"
+                    />
+                    <span>Prioritize Verified GitHub Contributors</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-400 hover:text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={filterNitrrOnly}
+                      onChange={(e) => setFilterNitrrOnly(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-500/30 cursor-pointer"
+                    />
+                    <span>NIT Raipur Peer Priority</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Skill Selection by Category with Checkboxes */}
               <div className="space-y-3">
-                <label className="text-xs font-medium text-slate-300 block">
-                  Required Competencies ({selectedSkills.length} selected)
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-slate-300 block">
+                    Required Competencies ({selectedSkills.length} selected)
+                  </label>
+                  {selectedSkills.length === 0 && (
+                    <span className="text-[10px] text-slate-500">
+                      All unchecked by default
+                    </span>
+                  )}
+                </div>
+
+                {validationWarning && (
+                  <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-400" />
+                    <span>{validationWarning}</span>
+                  </div>
+                )}
 
                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                   {Object.entries(skillCategories).map(([category, skills]) => (
@@ -174,19 +297,31 @@ export default function TeamMatcher() {
                         {skills.map((skill) => {
                           const isSelected = selectedSkills.includes(skill);
                           return (
-                            <button
+                            <label
                               key={skill}
-                              type="button"
-                              onClick={() => toggleSkill(skill)}
-                              className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all duration-150 cursor-pointer ${
+                              className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5 select-none ${
                                 isSelected
                                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/40 border border-indigo-400/40'
                                   : 'bg-slate-800/70 text-slate-300 hover:bg-slate-700/60 border border-slate-700/50'
                               }`}
                             >
-                              {isSelected ? '✓ ' : '+ '}
-                              {skill}
-                            </button>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSkill(skill)}
+                                className="sr-only"
+                              />
+                              <span
+                                className={`w-3 h-3 rounded-[3px] border flex items-center justify-center text-[9px] ${
+                                  isSelected
+                                    ? 'border-white bg-indigo-500 text-white'
+                                    : 'border-slate-500 bg-slate-900/80 text-transparent'
+                                }`}
+                              >
+                                ✓
+                              </span>
+                              <span>{skill}</span>
+                            </label>
                           );
                         })}
                       </div>
@@ -225,7 +360,15 @@ export default function TeamMatcher() {
 
         {/* Results Column */}
         <div className="lg:col-span-7 space-y-6">
-          {matchResult ? (
+          {isMatching ? (
+            <Card className="p-16 text-center border-indigo-500/20">
+              <RefreshCw className="w-10 h-10 text-cyan-400 mx-auto animate-spin" />
+              <h3 className="text-base font-bold text-white mt-4">Evaluating Campus Pool</h3>
+              <p className="text-xs text-slate-400 mt-1.5 max-w-sm mx-auto">
+                Running deterministic combinatorial permutations across verified students...
+              </p>
+            </Card>
+          ) : matchResult ? (
             <>
               {/* Metrics Card */}
               <Card className="p-6 border-indigo-500/30 bg-gradient-to-b from-indigo-950/30 to-slate-900/60">
@@ -234,7 +377,9 @@ export default function TeamMatcher() {
                     <span className="text-xs text-indigo-400 font-semibold tracking-wider uppercase">
                       Match Assessment
                     </span>
-                    <h2 className="text-xl font-bold text-white mt-0.5">{projectName}</h2>
+                    <h2 className="text-xl font-bold text-white mt-0.5">
+                      {projectName || 'Custom Synthesized Squad'}
+                    </h2>
                     <p className="text-xs text-slate-400 mt-1">
                       Computed across {studentsData.length} active campus profiles
                     </p>
@@ -333,7 +478,7 @@ export default function TeamMatcher() {
                     <Users className="w-4 h-4 text-cyan-400" />
                     Selected Squad Roster ({matchResult.team.length} Members)
                   </h3>
-                  <span className="text-xs text-slate-400">Ranked by lexicographical optimum</span>
+                  <span className="text-xs text-slate-400">Ranked by Pareto optimum</span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
@@ -416,10 +561,38 @@ export default function TeamMatcher() {
               </div>
             </>
           ) : (
-            <Card className="p-12 text-center">
-              <RefreshCw className="w-8 h-8 text-slate-600 mx-auto animate-spin" />
-              <h3 className="text-base font-semibold text-slate-300 mt-4">Evaluating Campus Pool</h3>
-              <p className="text-xs text-slate-500 mt-1">Calculating optimum combination...</p>
+            /* Clean Empty State when user lands on page */
+            <Card className="p-10 text-center border-indigo-500/20 bg-slate-900/40">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/10">
+                <Sparkles className="w-8 h-8 text-cyan-400" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Ready for Team Synthesis</h3>
+              <p className="text-xs text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+                All input fields and checkboxes are reset and ready. Enter your Project or Team Name and select required competencies from the checkboxes to generate Pareto-optimal squads.
+              </p>
+
+              <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs">
+                <span className="text-slate-500">Status:</span>
+                <Badge variant="slate" size="sm">
+                  0 Skills Selected
+                </Badge>
+                <Badge variant="indigo" size="sm">
+                  Inputs Unchecked by Default
+                </Badge>
+                <Badge variant="emerald" size="sm">
+                  Engine Ready
+                </Badge>
+              </div>
+
+              <div className="mt-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => applyPreset(quickPresets[1])}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 underline underline-offset-4 cursor-pointer"
+                >
+                  Or click here to load the AI Hackathon preset
+                </button>
+              </div>
             </Card>
           )}
         </div>
